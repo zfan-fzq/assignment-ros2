@@ -1,0 +1,3 @@
+[console_scripts]
+vision_nav = tb3_autonomous.navigation_node:main
+
