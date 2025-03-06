@@ -15,3 +15,4 @@ test/test_copyright.py
 test/test_flake8.py
 test/test_pep257.py
 worlds/new_world.world
+xacro/turtlebot3_waffle_pi.urdf.xacro

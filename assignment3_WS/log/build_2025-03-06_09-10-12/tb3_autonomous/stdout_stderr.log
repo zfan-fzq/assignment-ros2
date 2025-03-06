@@ -26,6 +26,7 @@ running install_data
 creating /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/launch
 copying launch/new_world.launch.py -> /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/launch
 creating /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/xacro
+copying xacro/turtlebot3_waffle_pi.urdf.xacro -> /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/xacro
 creating /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/worlds
 copying worlds/new_world.world -> /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/worlds
 copying package.xml -> /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous
