@@ -1,0 +1,39 @@
+[2.415s] Invoking command in '/home/zfan/assignment3/assignment3_WS/src/tb3_autonomous': PYTHONPATH=/home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/tb3_autonomous build --build-base /home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/build install --record /home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/install.log --single-version-externally-managed install_data
+[3.166s] running egg_info
+[3.167s] creating ../../build/tb3_autonomous/tb3_autonomous.egg-info
+[3.168s] writing ../../build/tb3_autonomous/tb3_autonomous.egg-info/PKG-INFO
+[3.168s] writing dependency_links to ../../build/tb3_autonomous/tb3_autonomous.egg-info/dependency_links.txt
+[3.169s] writing entry points to ../../build/tb3_autonomous/tb3_autonomous.egg-info/entry_points.txt
+[3.169s] writing requirements to ../../build/tb3_autonomous/tb3_autonomous.egg-info/requires.txt
+[3.170s] writing top-level names to ../../build/tb3_autonomous/tb3_autonomous.egg-info/top_level.txt
+[3.170s] writing manifest file '../../build/tb3_autonomous/tb3_autonomous.egg-info/SOURCES.txt'
+[3.175s] reading manifest file '../../build/tb3_autonomous/tb3_autonomous.egg-info/SOURCES.txt'
+[3.178s] writing manifest file '../../build/tb3_autonomous/tb3_autonomous.egg-info/SOURCES.txt'
+[3.178s] running build
+[3.179s] running build_py
+[3.180s] creating /home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/build
+[3.182s] creating /home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/build/lib
+[3.182s] creating /home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/build/lib/tb3_autonomous
+[3.183s] copying tb3_autonomous/__init__.py -> /home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/build/lib/tb3_autonomous
+[3.183s] copying tb3_autonomous/navigation_node.py -> /home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/build/lib/tb3_autonomous
+[3.184s] running install
+[3.184s] running install_lib
+[3.185s] creating /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/lib/python3.10/site-packages/tb3_autonomous
+[3.185s] copying /home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/build/lib/tb3_autonomous/__init__.py -> /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/lib/python3.10/site-packages/tb3_autonomous
+[3.186s] copying /home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/build/lib/tb3_autonomous/navigation_node.py -> /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/lib/python3.10/site-packages/tb3_autonomous
+[3.187s] byte-compiling /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/lib/python3.10/site-packages/tb3_autonomous/__init__.py to __init__.cpython-310.pyc
+[3.188s] byte-compiling /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/lib/python3.10/site-packages/tb3_autonomous/navigation_node.py to navigation_node.cpython-310.pyc
+[3.193s] running install_data
+[3.193s] creating /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/launch
+[3.194s] copying launch/new_world.launch.py -> /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/launch
+[3.194s] creating /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/xacro
+[3.194s] copying xacro/turtlebot3_waffle_pi.urdf.xacro -> /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/xacro
+[3.195s] creating /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/worlds
+[3.195s] copying worlds/new_world.world -> /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous/worlds
+[3.196s] copying package.xml -> /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/share/tb3_autonomous
+[3.196s] running install_egg_info
+[3.200s] Copying ../../build/tb3_autonomous/tb3_autonomous.egg-info to /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/lib/python3.10/site-packages/tb3_autonomous-0.0.0-py3.10.egg-info
+[3.203s] running install_scripts
+[3.260s] Installing vision_nav script to /home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/lib/tb3_autonomous
+[3.261s] writing list of installed files to '/home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/install.log'
+[3.322s] Invoked command in '/home/zfan/assignment3/assignment3_WS/src/tb3_autonomous' returned '0': PYTHONPATH=/home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/zfan/assignment3/assignment3_WS/install/tb3_autonomous/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/tb3_autonomous build --build-base /home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/build install --record /home/zfan/assignment3/assignment3_WS/build/tb3_autonomous/install.log --single-version-externally-managed install_data

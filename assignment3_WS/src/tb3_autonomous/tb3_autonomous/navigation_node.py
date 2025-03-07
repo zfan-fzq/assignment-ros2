@@ -7,6 +7,8 @@ from cv_bridge import CvBridge
 import cv2
 import numpy as np
 import time
+import random
+import math
 
 class TurtlebotNavigator(Node):
     def __init__(self):
@@ -31,7 +33,7 @@ class TurtlebotNavigator(Node):
         # 速度设置
         self.normal_speed = 0.2   # 正常线速度（m/s）
         self.slow_speed = 0.05    # 减速时的速度（m/s）
-        self.max_turn_speed = 1.0 # 最大角速度（rad/s）
+        self.max_turn_speed = 1.0 # 紧急转向时的固定角速度（rad/s）
         
         # 定义各区域的比例（根据图像尺寸调整）
         self.boundary_slow_frac = 0.7   # 图像底部 30% 为边界预警区
@@ -40,10 +42,15 @@ class TurtlebotNavigator(Node):
         # 紧急转向状态参数
         self.emergency_turn = False
         self.turn_start_time = None
-        self.emergency_turn_duration = 2.0  # 紧急转向持续时间（秒），1 rad/s * 2 s ≈ 114°转角
+        # 紧急转向持续时间将根据随机转向角度计算
+        self.emergency_turn_duration = 0.0  
         self.emergency_turn_direction = 0.0  # 紧急转向方向（正：左转，负：右转）
         
-        # 障碍物检测阈值（轮廓面积，增大此值表示只有障碍物更近时才触发）
+        # 冷却期参数：紧急转向完成后设置冷却期，避免连续触发
+        self.cooldown_duration = 1.0  # 冷却期持续时间延长至1.5秒
+        self.emergency_cooldown_end = 0.0  # 冷却期结束时间戳
+        
+        # 障碍物检测阈值（轮廓面积，单位：像素）
         self.obstacle_area_threshold = 2500
 
     def classify_lines(self, lines, image_shape):
@@ -59,7 +66,6 @@ class TurtlebotNavigator(Node):
         for line in lines:
             x1, y1, x2, y2 = line[0]
             avg_y = (y1 + y2) / 2.0
-            # 计算线段角度（单位：度）
             angle = np.degrees(np.arctan2((y2 - y1), (x2 - x1)))
             abs_angle = abs(angle)
             if avg_y < height * 0.4 and abs_angle < 10:
@@ -114,7 +120,6 @@ class TurtlebotNavigator(Node):
         
         # 仅关注图像下半部分区域（假设障碍物主要出现在机器人前方）
         roi_obstacle = orange_mask[int(height * 0.5):, :]
-        # 利用轮廓提取判断障碍物是否非常近
         contours, _ = cv2.findContours(roi_obstacle, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         obstacle_close = False
         largest_contour = None
@@ -125,67 +130,73 @@ class TurtlebotNavigator(Node):
                 obstacle_close = True
 
         # -------------------------------------
-        # 3. 紧急转向处理（优先处理紧急状态）
+        # 3. 检查是否处于冷却期，如果在冷却期内则跳过紧急检测
+        # -------------------------------------
+        current_time = time.time()
+        if current_time < self.emergency_cooldown_end:
+            self.get_logger().info("处于紧急转向冷却期，不触发新的紧急转向")
+        
+        # -------------------------------------
+        # 4. 紧急转向处理（优先处理紧急状态）
         # -------------------------------------
         if self.emergency_turn:
-            elapsed = time.time() - self.turn_start_time
+            elapsed = current_time - self.turn_start_time
             twist = Twist()
             twist.linear.x = 0.0
-            twist.angular.z = self.emergency_turn_direction  # 固定角速度转动
+            twist.angular.z = self.emergency_turn_direction
             self.cmd_pub.publish(twist)
             self.get_logger().info(f"紧急转向中，已转向 {elapsed:.1f}s")
             if elapsed >= self.emergency_turn_duration:
                 self.emergency_turn = False
                 self.turn_start_time = None
-                self.get_logger().info("紧急转向完成")
+                # 设置冷却期
+                self.emergency_cooldown_end = current_time + self.cooldown_duration
+                self.get_logger().info("紧急转向完成，进入冷却期")
             return  # 紧急转向期间不处理其他逻辑
 
         # -------------------------------------
-        # 4. 检测障碍物紧急情况：只有当障碍物非常近时才触发
+        # 5. 检测障碍物紧急情况：只有当障碍物非常近时才触发（且不在冷却期）
         # -------------------------------------
-        if obstacle_close:
-            # 利用障碍物轮廓质心判断转向方向
-            M = cv2.moments(largest_contour)
-            if M["m00"] > 0:
-                cx = int(M["m10"] / M["m00"])
-            else:
-                cx = width / 2
-            # 如果障碍物质心在图像左侧，则向右转；反之则向左转
-            if cx < width / 2:
-                self.emergency_turn_direction = -1.0  # 右转
-            else:
-                self.emergency_turn_direction = 1.0   # 左转
+        if obstacle_close and current_time >= self.emergency_cooldown_end:
+            # 生成随机转向角度，范围 100° 到 180°（转为弧度）
+            random_angle_deg = random.uniform(100, 180)
+            turning_angle_rad = math.radians(random_angle_deg)
+            # 计算转向持续时间：转向角度 / 固定角速度
+            self.emergency_turn_duration = turning_angle_rad / self.max_turn_speed
+            # 随机选择转向方向（左转或右转）
+            self.emergency_turn_direction = random.choice([-self.max_turn_speed, self.max_turn_speed])
             self.emergency_turn = True
-            self.turn_start_time = time.time()
+            self.turn_start_time = current_time
             twist = Twist()
             twist.linear.x = 0.0
             twist.angular.z = self.emergency_turn_direction
             self.cmd_pub.publish(twist)
-            self.get_logger().info("检测到近距离障碍物，启动紧急转向")
+            self.get_logger().info(
+                f"检测到近距离障碍物，启动紧急转向，随机角度: {random_angle_deg:.1f}°，预计转向时间: {self.emergency_turn_duration:.2f}s"
+            )
             return
 
         # -------------------------------------
-        # 5. 检测边界紧邻情况，启动紧急转向
+        # 6. 检测边界紧邻情况，启动紧急转向（且不在冷却期）
         # -------------------------------------
-        if near_boundary:
-            # 根据左右区域白色分布决定转向方向
-            left_white = cv2.countNonZero(white_mask[stop_region_y:, 0:width//2])
-            right_white = cv2.countNonZero(white_mask[stop_region_y:, width//2:])
-            if right_white > left_white:
-                self.emergency_turn_direction = 1.0   # 向左转
-            else:
-                self.emergency_turn_direction = -1.0  # 向右转
+        if near_boundary and current_time >= self.emergency_cooldown_end:
+            random_angle_deg = random.uniform(100, 180)
+            turning_angle_rad = math.radians(random_angle_deg)
+            self.emergency_turn_duration = turning_angle_rad / self.max_turn_speed
+            self.emergency_turn_direction = random.choice([-self.max_turn_speed, self.max_turn_speed])
             self.emergency_turn = True
-            self.turn_start_time = time.time()
+            self.turn_start_time = current_time
             twist = Twist()
             twist.linear.x = 0.0
             twist.angular.z = self.emergency_turn_direction
             self.cmd_pub.publish(twist)
-            self.get_logger().info("紧急情况：接近边界，启动紧急转向")
+            self.get_logger().info(
+                f"紧急情况：接近边界，启动紧急转向，随机角度: {random_angle_deg:.1f}°，预计转向时间: {self.emergency_turn_duration:.2f}s"
+            )
             return
         
         # -------------------------------------
-        # 6. 正常导航（无紧急情况时）
+        # 7. 正常导航（无紧急情况时）
         # -------------------------------------
         twist = Twist()
         twist.linear.x = self.normal_speed
@@ -193,7 +204,7 @@ class TurtlebotNavigator(Node):
             twist.linear.x = self.slow_speed
             self.get_logger().info("检测到白线：减速")
         
-        # 利用禁区线或中场线辅助调整航向
+        # 利用禁区线或中场线辅助调整航向（使用PID控制）
         if len(line_classes["penalty"]) > 0:
             xs = []
             for line in line_classes["penalty"]:
@@ -207,7 +218,7 @@ class TurtlebotNavigator(Node):
                 d_term = (error - self.prev_error) / 0.1
                 ang_z = self.Kp * p_term + self.Ki * self.integral_error + self.Kd * d_term
                 ang_z = np.clip(ang_z, -self.max_turn_speed, self.max_turn_speed)
-                twist.angular.z = -ang_z  # 负号保证转向与误差方向相反
+                twist.angular.z = -ang_z
                 self.prev_error = error
                 self.get_logger().info(f"禁区线检测：error={error:.2f}, ang_z={twist.angular.z:.2f}")
         elif len(line_classes["midfield"]) > 0:
@@ -249,3 +260,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
