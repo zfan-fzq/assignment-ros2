@@ -1,1 +1,5 @@
 *.pyc
+
+/assignment4/build
+/assignment4/install
+/assignment4/log
