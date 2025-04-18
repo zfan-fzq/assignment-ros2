@@ -1,23 +1,28 @@
 #!/usr/bin/env python3
-import rclpy
-from rclpy.node import Node
-from geometry_msgs.msg import Twist
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
-import cv2
-import numpy as np
+
 import sys
 import select
 import termios
 import tty
 import threading
 import time
-import threading
-import time
 import math
 
+import rclpy
+from rclpy.node import Node
+
+from sensor_msgs.msg import Image
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Twist
+
+from cv_bridge import CvBridge
+import cv2
+import numpy as np
+
 import tf2_ros
-from tf_transformations import euler_from_quaternion
+import tf_transformations
+from tf_transformations import euler_from_quaternion, euler_from_matrix
+
 
 class ArucoNavigator(Node):
     def __init__(self):
@@ -28,18 +33,19 @@ class ArucoNavigator(Node):
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.image_sub = self.create_subscription(
             Image, '/camera/image_raw', self.image_callback, 10)
+        self.odom_sub = self.create_subscription(
+            Odometry, '/odom', self.odom_callback, 50)
         self.bridge = CvBridge()
 
-        # TF2 for map (world) → base_link
-        self.tf_buffer   = tf2_ros.Buffer()
+        # TF2 listener (unused now, but kept for potential future)
+        self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
-        # ArUco setup
-        self.aruco_dict    = cv2.aruco.getPredefinedDictionary(
-                                cv2.aruco.DICT_4X4_50)
-        self.marker_length = 0.16  # 16 cm
+        # ArUco detection
+        self.aruco_dict    = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+        self.marker_length = 0.16  # meters
 
-        # Dummy intrinsics (replace with your calibration)
+        # Camera intrinsics (replace with your calibration)
         self.camera_matrix = np.array([
             [525.0,   0.0, 320.5],
             [  0.0, 525.0, 240.5],
@@ -47,178 +53,192 @@ class ArucoNavigator(Node):
         ], dtype=np.float32)
         self.dist_coeffs = np.zeros((5, 1))
 
-        self.robot_x = None
-        self.robot_y = None
+        # Odometry pose (in odom frame)
+        self.odom_x    = 0.0
+        self.odom_y    = 0.0
+        self.odom_yaw  = 0.0
 
-        self.marker_positions = {}
+        # Map‐frame pose (initialized on marker1 detection)
+        self.robot_x       = 0.0
+        self.robot_y       = 0.0
+        self.robot_yaw     = 0.0
+        self.offset_x      = 0.0
+        self.offset_y      = 0.0
+        self.offset_yaw    = 0.0
+        self.initialized   = False
 
-        # once we have 4 corners, compute this center
-        self.target_center = None     # (x, z)
+        # Storage for landmark positions (map frame)
+        self.marker_positions = {}  # mid -> (x, y)
+        self.target_center     = None   # (x, y)
 
-        # timer to run control at 10 Hz
+        # Optional keyboard control
+        self._setup_keyboard()
 
-        # Keyboard control (optional)
-        if sys.stdin.isatty():
-            self.keyboard_input = sys.stdin
-        else:
-            try:
-                self.keyboard_input = open('/dev/tty')
-            except Exception:
-                self.keyboard_input = None
-
-        if self.keyboard_input:
-            thr = threading.Thread(target=self.keyboard_loop, daemon=True)
-            thr.start()
-
-    def keyboard_loop(self):
-        settings = termios.tcgetattr(self.keyboard_input)
-        def getKey():
-            tty.setraw(self.keyboard_input.fileno())
-            r, _, _ = select.select([self.keyboard_input], [], [], 0.1)
-            key = self.keyboard_input.read(1) if r else ''
-            termios.tcsetattr(self.keyboard_input, termios.TCSADRAIN, settings)
-            return key
-
-        self.get_logger().info("Keyboard: W/A/S/D to move, Q to quit")
-        while rclpy.ok():
-            k = getKey()
-            t = Twist()
-            if k=='w':      t.linear.x = 0.5
-            elif k=='s':    t.linear.x = -0.5
-            elif k=='a':    t.angular.z = 0.5
-            elif k=='d':    t.angular.z = -0.5
-            elif k == 'g':
-                threading.Thread(target=self.gotoposition, daemon=True).start()
-            elif k=='q':
-                self.get_logger().info("Shutting down.")
-                rclpy.shutdown()
-                break
-            self.cmd_pub.publish(t)
-            time.sleep(0.1)
-
-    def image_callback(self, msg):
+    def _setup_keyboard(self):
         try:
-            # 1) CV conversion & detect
+            inp = sys.stdin if sys.stdin.isatty() else open('/dev/tty')
+        except:
+            return
+
+        def get_key():
+            settings = termios.tcgetattr(inp)
+            tty.setraw(inp.fileno())
+            r, _, _ = select.select([inp], [], [], 0.1)
+            k = inp.read(1) if r else ''
+            termios.tcsetattr(inp, termios.TCSADRAIN, settings)
+            return k
+
+        def loop():
+            self.get_logger().info("Keyboard: W/A/S/D to move, G to go to center, Q to quit")
+            while rclpy.ok():
+                k = get_key()
+                cmd = Twist()
+                if   k == 'w': cmd.linear.x  = 0.5
+                elif k == 's': cmd.linear.x  = -0.5
+                elif k == 'a': cmd.angular.z = 0.5
+                elif k == 'd': cmd.angular.z = -0.5
+                elif k == 'g': threading.Thread(target=self.gotoposition, daemon=True).start()
+                elif k == 'q':
+                    self.get_logger().info("Shutting down.")
+                    rclpy.shutdown()
+                    break
+                self.cmd_pub.publish(cmd)
+                time.sleep(0.1)
+
+        threading.Thread(target=loop, daemon=True).start()
+
+    def odom_callback(self, msg: Odometry):
+        # 1) read current odometry
+        px = msg.pose.pose.position.x
+        py = msg.pose.pose.position.y
+        q  = msg.pose.pose.orientation
+        _, _, yaw = euler_from_quaternion([q.x, q.y, q.z, q.w])
+
+        self.odom_x   = px
+        self.odom_y   = py
+        self.odom_yaw = yaw
+
+        # 2) if we have an initial landmark fix, update map‐frame pose
+        if self.initialized:
+            self.robot_x   = self.odom_x   + self.offset_x
+            self.robot_y   = self.odom_y   + self.offset_y
+            self.robot_yaw = self.odom_yaw + self.offset_yaw
+
+    def image_callback(self, msg: Image):
+        try:
+            # detect markers
             img = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             corners, ids, _ = cv2.aruco.detectMarkers(gray, self.aruco_dict)
             if ids is None:
                 return
 
-            # 2) Pose in camera frame
+            # estimate poses in camera frame
             rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
-                corners, self.marker_length,
-                self.camera_matrix, self.dist_coeffs)
-
-            # 3) Robot pose in world/map
+                corners, self.marker_length, self.camera_matrix, self.dist_coeffs)
+            
             tf_map_base = self.tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
             t = tf_map_base.transform.translation
             q = tf_map_base.transform.rotation
             _, _, yaw = euler_from_quaternion([q.x, q.y, q.z, q.w])
 
-            # 4) For each marker, compute world‐relative vector
+
+            # process each marker
             for i, mid in enumerate(ids.flatten()):
-                x_cam, _, z_cam = tvecs[i][0]  # drop camera height
+                # camera‐relative coordinates
+                x_cam, _, z_cam = tvecs[i][0]
+                forward = z_cam
+                left    = -x_cam
 
-                # rotate into world frame → this is the RELATIVE vector
-                dx_world =  np.cos(yaw)*x_cam - np.sin(yaw)*z_cam
-                dz_world =  np.sin(yaw)*x_cam + np.cos(yaw)*z_cam
-                dist_world = np.hypot(dx_world, dz_world)
+                if mid == 1 and not self.initialized:
+                    # 1) compute initial map‐frame position from this detection
+                    #    we assume marker1 lies at (0,0) facing +Y (world yaw=π/2)
+                    marker_world_yaw = math.pi / 2
 
-                # self.get_logger().info(
-                #     f"Marker {mid} relative in world frame: "
-                #     f"dx={dx_world:.2f} m, dz={dz_world:.2f} m "
-                #     f"(d={dist_world:.2f} m)\n"
-                # )
+                    # 2) extract yaw of camera relative to marker
+                    R_ct, _ = cv2.Rodrigues(rvecs[i][0])
+                    R_tc = R_ct.T
+                    _, _, yaw_cam = euler_from_matrix(R_tc)
 
-                if mid == 1:
-                    self.robot_x = -dx_world
-                    self.robot_z = -dz_world
-                    self.marker_positions[mid] = (0, 0)
+                    # 3) estimated robot yaw in world
+                    self.robot_yaw = -marker_world_yaw + yaw_cam
+
+                    # 4) rotate the camera‐relative vector into world frame
+                    dx =  math.cos(self.robot_yaw)*forward - math.sin(self.robot_yaw)*left
+                    dy =  math.sin(self.robot_yaw)*forward + math.cos(self.robot_yaw)*left
+
+                    # robot is opposite direction from marker at (0,0)
+                    self.robot_x = -dx
+                    self.robot_y = -dy
+
+                    # 5) compute offsets to align odom → map
+                    self.offset_x   = self.robot_x   - self.odom_x
+                    self.offset_y   = self.robot_y   - self.odom_y
+                    self.offset_yaw = self.robot_yaw - self.odom_yaw
+
+                    self.initialized = True
                     self.get_logger().info(
-                        f"Robot position (world frame): x={self.robot_x:.2f} m, z={self.robot_z:.2f} m\n"
+                        f"Init from marker1: x={self.robot_x:.2f}, y={self.robot_y:.2f}, yaw={self.robot_yaw:.2f}"
                     )
+                    continue
 
-                if mid == 2 and self.robot_x is not None:
-                    # compute marker 2 world pose
-                    m2_x = self.robot_x + dx_world
-                    m2_z = self.robot_z + dz_world
-                    self.marker_positions[mid] = (m2_x, m2_z)
+                # once initialized, or for markers 2–4, compute world position
+                if self.initialized:
+                    dx =  math.cos(self.robot_yaw)*forward - math.sin(self.robot_yaw)*left
+                    dy =  math.sin(self.robot_yaw)*forward + math.cos(self.robot_yaw)*left
+                    mx = self.robot_x + dx
+                    my = self.robot_y + dy
+                    self.marker_positions[int(mid)] = (mx, my)
+                    self.get_logger().info(f"Marker {mid}: x={mx:.2f}, y={my:.2f}")
 
-                if mid == 3 and self.robot_x is not None:
-                    # compute marker 2 world pose
-                    m2_x = self.robot_x + dx_world
-                    m2_z = self.robot_z + dz_world
-                    self.marker_positions[mid] = (m2_x, m2_z)
-
-
-                if mid == 4 and self.robot_x is not None:
-                    # compute marker 2 world pose
-                    m2_x = self.robot_x + dx_world
-                    m2_z = self.robot_z + dz_world
-                    self.marker_positions[mid] = (m2_x, m2_z)
-
-                # draw axes for sanity
-                # cv2.aruco.drawAxis(
-                #     img, self.camera_matrix, self.dist_coeffs,
-                #     rvecs[i], tvecs[i], self.marker_length*0.5)
-            
-            for mid, (mx, mz) in self.marker_positions.items():
-                self.get_logger().info(f"Marker {mid}: x={mx:.2f} m, z={mz:.2f} m")
+            if self.initialized:
+                self.get_logger().info(f"Robot: x={self.robot_x:.2f}, y={self.robot_y:.2f}, yaw={self.robot_yaw:.2f}, GT={yaw:.2f}")
 
 
-            if len(self.marker_positions) >= 4 and self.target_center is None:
+            # compute center when we have all four
+            if self.initialized and len(self.marker_positions) >= 4 and self.target_center is None:
                 xs = [p[0] for p in self.marker_positions.values()]
-                zs = [p[1] for p in self.marker_positions.values()]
-                self.target_center = (sum(xs)/4.0, sum(zs)/4.0)
+                ys = [p[1] for p in self.marker_positions.values()]
+                self.target_center = (sum(xs)/4.0, sum(ys)/4.0)
                 self.get_logger().info(
-                    f"Quad center: x={self.target_center[0]:.2f} m, z={self.target_center[1]:.2f} m"
+                    f"Quad center: x={self.target_center[0]:.2f}, y={self.target_center[1]:.2f}"
                 )
-
-            # debug view
-            # cv2.imshow('Aruco', img)
-            # cv2.waitKey(1)
-
         except Exception as e:
             self.get_logger().error(f"Image processing error: {e}")
 
-    def gotoposition(self):
-        if self.target_center is None:
-            self.get_logger().warn("Center not yet computed.")
-            return
-        self.get_logger().info("Navigating to center...")
-        rate = self.create_rate(10)
-        while rclpy.ok():
-            try:
-                tf_map_base = self.tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
-                t = tf_map_base.transform.translation
-                q = tf_map_base.transform.rotation
-                _, _, yaw = euler_from_quaternion([q.x, q.y, q.z, q.w])
-                robot_x, robot_z = t.x, t.z
-            except Exception:
-                continue
 
-            cx, cz = self.target_center
-            dx = cx - robot_x
-            dz = cz - robot_z
-            dist = math.hypot(dx, dz)
+    def gotoposition(self):
+        if not self.initialized or self.target_center is None:
+            self.get_logger().warn("Not ready: waiting for initial pose & all markers.")
+            return
+
+        self.get_logger().info("Navigating to center…")
+        rate = self.create_rate(10)
+
+        while rclpy.ok():
+            dx = self.target_center[0] - self.robot_x
+            dy = self.target_center[1] - self.robot_y
+            dist = math.hypot(dx, dy)
             if dist < 0.05:
                 self.get_logger().info("Arrived at center.")
                 self.cmd_pub.publish(Twist())
                 break
 
-            theta_target = math.atan2(dx, dz)
-            angle_error = (theta_target - yaw + math.pi) % (2*math.pi) - math.pi
+            theta_target = math.atan2(dy, dx)
+            angle_error = (theta_target - self.robot_yaw + math.pi) % (2*math.pi) - math.pi
 
             cmd = Twist()
             if abs(angle_error) > 0.1:
-                cmd.angular.z = 1.0 * angle_error
+                cmd.angular.z = 0.2 + 0.5 * angle_error
             else:
-                cmd.linear.x = 0.3 * dist
+                cmd.linear.x = 0.1 + 0.3 * dist
 
             cmd.linear.x  = max(min(cmd.linear.x, 0.5), -0.5)
             cmd.angular.z = max(min(cmd.angular.z, 1.0), -1.0)
             self.cmd_pub.publish(cmd)
+            self.get_logger().info(
+                f"To center: dist={dist:.2f}, angle_err={angle_error:.2f}"
+            )
             rate.sleep()
 
 def main(args=None):
@@ -233,5 +253,5 @@ def main(args=None):
         cv2.destroyAllWindows()
         rclpy.shutdown()
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
