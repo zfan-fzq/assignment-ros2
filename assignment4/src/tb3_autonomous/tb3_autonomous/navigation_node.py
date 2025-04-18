@@ -71,6 +71,11 @@ class ArucoNavigator(Node):
         self.marker_positions = {}  # mid -> (x, y)
         self.target_center     = None   # (x, y)
 
+        self.state = None
+
+        # Control loop at 10 Hz
+        self.create_timer(0.1, self.control_loop)
+
         # Optional keyboard control
         self._setup_keyboard()
 
@@ -97,6 +102,7 @@ class ArucoNavigator(Node):
                 elif k == 's': cmd.linear.x  = -0.5
                 elif k == 'a': cmd.angular.z = 0.5
                 elif k == 'd': cmd.angular.z = -0.5
+                elif k == 'i': self.state = "explore"
                 elif k == 'g': threading.Thread(target=self.gotoposition, daemon=True).start()
                 elif k == 'q':
                     self.get_logger().info("Shutting down.")
@@ -200,12 +206,22 @@ class ArucoNavigator(Node):
                 xs = [p[0] for p in self.marker_positions.values()]
                 ys = [p[1] for p in self.marker_positions.values()]
                 self.target_center = (sum(xs)/4.0, sum(ys)/4.0)
+
+                self.state = "explored"
                 self.get_logger().info(
                     f"Quad center: x={self.target_center[0]:.2f}, y={self.target_center[1]:.2f}"
                 )
         except Exception as e:
             self.get_logger().error(f"Image processing error: {e}")
 
+
+    def control_loop(self):
+        # spinning scan
+        if self.state == 'explore':
+            twist = Twist()
+            twist.angular.z = -0.2
+            self.cmd_pub.publish(twist)
+            return
 
     def gotoposition(self):
         if not self.initialized or self.target_center is None:
