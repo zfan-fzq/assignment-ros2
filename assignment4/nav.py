@@ -28,9 +28,6 @@ class ArucoNavigator(Node):
         super().__init__("aruco_navigator")
         self.get_logger().info("Aruco navigator started.")
 
-        self.base_id = None
-        self.id_map = {}
-
         # QoS for image subscriber
         qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -49,45 +46,6 @@ class ArucoNavigator(Node):
         )
         self.bridge = CvBridge()
 
-        # ArUco detection params
-        self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-        self.marker_length = 0.16  # meters
-        self.camera_matrix = np.array(
-            [
-                [456.82000732, 0.0, 326.66424561],
-                [0.0, 456.82000732, 243.38911438],
-                [0.0, 0.0, 1.0],
-            ],
-            dtype=np.float32,
-        )
-        self.dist_coeffs = np.zeros((5, 1), dtype=np.float32)
-
-        # Odometry state
-        self.odom_x = self.odom_y = self.odom_yaw = 0.0
-        self.odom0_x = 0.0
-        self.odom0_y = 0.0
-        self.odom0_yaw = 0.0
-
-        self.marker_distance = {}
-        self.marker_camera = {}
-        self.marker_update = {1: False, 2: False, 3: False, 4: False}
-
-        # Map-frame state (after initialization)
-        self.robot_x = self.robot_y = self.robot_yaw = 0.0
-        self.offset_x = self.offset_y = self.offset_yaw = 0.0
-        self.initialized = False
-
-        # Marker estimates & smoothing buffers
-        self.marker_positions = {}  # mid -> (x,y)
-        self._marker_buffers = defaultdict(lambda: deque(maxlen=5))
-
-        self.alpha = 0.2  # EMA weight for updates
-
-        # Center point & navigation state
-        self.target_center = None
-        self.state = None
-
-        self.obstacle_too_close = False
         qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,  # BEST_EFFORT: attempt to deliver samples, but may lose them if the network is not robust.
             durability=DurabilityPolicy.VOLATILE,  # VOLATILE: no attempt is made to persist samples.
@@ -102,23 +60,107 @@ class ArucoNavigator(Node):
             qos_profile=qos_profile,  # Replace with your lidar topic
         )
 
+        # ArUco detection params
+        self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+        self.marker_length = 0.16  # meters
+        self.camera_matrix = np.array(
+            [
+                [456.82000732, 0.0, 326.66424561],
+                [0.0, 456.82000732, 243.38911438],
+                [0.0, 0.0, 1.0],
+            ],
+            dtype=np.float32,
+        )
+        self.dist_coeffs = np.zeros((5, 1), dtype=np.float32)
+
+        # initialize
+
+        # Odometry state
+        self.odom_x = self.odom_y = self.odom_yaw = 0.0
+        self.odom0_x = 0.0
+        self.odom0_y = 0.0
+        self.odom0_yaw = 0.0
+
+        # internal state
+        self._search_phase = "spin"  # or "pause"
+        self._phase_start = time.time()
+
+        self.marker_distance = {}
+        self.marker_camera = {}
+        self.marker_update = {1: False, 2: False, 3: False, 4: False}
+
+        # Map-frame state (after initialization)
+        self.robot_x = self.robot_y = self.robot_yaw = 0.0
+        self.offset_x = self.offset_y = self.offset_yaw = 0.0
+        self.initialized = False
+
+        # Marker estimates & smoothing buffers
+        self.marker_positions = {}  # mid -> (x,y)
+        self._marker_buffers = defaultdict(lambda: deque(maxlen=5))
+
+        # Center point & navigation state
+        self.target_center = None
+        self.state = None
+
+        self.obstacle_too_close = False
+
         self.T_odom_to_map = np.eye(3)  # 3x3 identity matrix
+
+        self.base_id = None
+        self.id_map = {}
+
         # Control loop timer
         self.create_timer(0.1, self.control_loop)
 
-        # last seen camera-frame coords of marker1
-        self.m1_x = None
-        self.m1_z = None
+        self.alpha = 0.2  # EMA weight for updates
+
+        # how long to spin (s) and pause (s)
+        self.search_spin_time = 0.2  # spin for 0.5 s
+        self.search_pause_time = 0.5  # then pause 1 s
 
         # control gains & thresholds
         self.kp_ang = 1.0  # radian error → angular speed
         self.max_ang_vel = 0.5  # rad/s
         self.forward_speed = 0.3  # m/s
         self.angle_tol = 0.15  # tolerance
-        self.dist_tol = 1.1  # stop when closer than 1 m
+        self.dist_tol = 0.9  # stop when closer than 1 m
 
         # Keyboard setup
         self._setup_keyboard()
+
+    def reset(self):
+        # Odometry state
+        self.odom_x = self.odom_y = self.odom_yaw = 0.0
+        self.odom0_x = 0.0
+        self.odom0_y = 0.0
+        self.odom0_yaw = 0.0
+
+        # internal state
+        self._search_phase = "spin"  # or "pause"
+        self._phase_start = time.time()
+
+        self.marker_distance = {}
+        self.marker_camera = {}
+        self.marker_update = {1: False, 2: False, 3: False, 4: False}
+
+        # Map-frame state (after initialization)
+        self.robot_x = self.robot_y = self.robot_yaw = 0.0
+        self.offset_x = self.offset_y = self.offset_yaw = 0.0
+        self.initialized = False
+
+        # Marker estimates & smoothing buffers
+        self.marker_positions = {}  # mid -> (x,y)
+        self._marker_buffers = defaultdict(lambda: deque(maxlen=5))
+
+        # Center point & navigation state
+        self.target_center = None
+
+        self.obstacle_too_close = False
+
+        self.T_odom_to_map = np.eye(3)  # 3x3 identity matrix
+
+        self.base_id = None
+        self.id_map = {}
 
     def scan_callback(self, scan: LaserScan):
         # we only care about +/-10° around straight ahead (i.e. index center)
@@ -169,9 +211,9 @@ class ArucoNavigator(Node):
                     elif k == "s":
                         cmd.linear.x = -0.5
                     elif k == "a":
-                        cmd.angular.z = 0.5
+                        cmd.angular.z = 1.5
                     elif k == "d":
-                        cmd.angular.z = -0.5
+                        cmd.angular.z = -1.5
                     elif k == "i":
                         self.state = "explore"
                     elif k == "g":
@@ -182,6 +224,9 @@ class ArucoNavigator(Node):
                         self.state = "approach3"
                     elif k == "4":
                         self.state = "approach4"
+                    elif k == "n":
+                        self.reset()
+                        self.state = "turning_go"
 
                     if k in ("w", "a", "s", "d"):
                         self.state = "manual"
@@ -239,7 +284,7 @@ class ArucoNavigator(Node):
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             corners, ids, _ = cv2.aruco.detectMarkers(gray, self.aruco_dict)
             if ids is None:
-                self.get_logger().info("No markers detected.")
+                # self.get_logger().info("No markers detected.")
                 return
 
             rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
@@ -400,9 +445,9 @@ class ArucoNavigator(Node):
                     self.marker_distance[mapped_mid] = forward
                     self.marker_camera[mapped_mid] = (x_cam, 0.0, z_cam)
                     self.marker_update[mapped_mid] = True
-                    self.get_logger().info(
-                        f"update marker camera {mapped_mid}: {x_cam:.2f}, {z_cam:.2f}"
-                    )
+                    # self.get_logger().info(
+                    #     f"update marker camera {mapped_mid}: {x_cam:.2f}, {z_cam:.2f}"
+                    # )
 
                     # rotate into world frame by current robot_yaw
                     dx = (
@@ -452,6 +497,11 @@ class ArucoNavigator(Node):
                 ys = [p[1] for p in self.marker_positions.values()]
                 self.target_center = (sum(xs) / 4.0, sum(ys) / 4.0)
 
+                if self.state == "turning_go":
+                    self.state = "goto"
+                    self.get_logger().info("→ all markers seen, switching to GOTO")
+                    threading.Thread(target=self.gotoposition).start()
+
                 self.get_logger().info(
                     f"Quad center: x={self.target_center[0]:.2f}, y={self.target_center[1]:.2f}"
                 )
@@ -463,13 +513,41 @@ class ArucoNavigator(Node):
         return (a + math.pi) % (2 * math.pi) - math.pi
 
     def control_loop(self):
-        auto_states = ("explore", "approach1", "approach2", "approach3", "approach4")
+        auto_states = (
+            "explore",
+            "approach1",
+            "approach2",
+            "approach3",
+            "approach4",
+            "turning_go",
+        )
         if self.state not in auto_states:
             return
+
         twist = Twist()
 
+        if self.state == "turning_go":
+            now = time.time()
+            elapsed = now - self._phase_start
+
+            if self._search_phase == "spin":
+                # fast spin
+                twist.angular.z = 2.0
+
+                # after spin time, switch to pause
+                if elapsed >= self.search_spin_time:
+                    self._search_phase = "pause"
+                    self._phase_start = now
+
+            else:  # pause phase
+                twist.angular.z = 0.0
+
+                # after pause time, switch back to spin
+                if elapsed >= self.search_pause_time:
+                    self._search_phase = "spin"
+                    self._phase_start = now
         # 1) spin until marker1
-        if self.state == "explore":
+        elif self.state == "explore":
             twist.angular.z = -0.15
 
         # 2) approach marker1 by ArUco‐bearing
@@ -503,6 +581,7 @@ class ArucoNavigator(Node):
             yaw_err = self.wrap_angle(desired_yaw - self.robot_yaw)
             if abs(yaw_err) > self.angle_tol and 2 not in self.marker_distance:
                 twist.angular.z = self.kp_ang * yaw_err
+                self.get_logger().info("approach2: turning")
             else:
                 if 2 not in self.marker_distance:
                     self.get_logger().warn("Marker 2 not found!")
@@ -512,12 +591,12 @@ class ArucoNavigator(Node):
                         self.marker_camera[2][0], self.marker_camera[2][2]
                     )
                     # rotate to center
-                    if self.marker_update[2] and abs(angle_error) > self.angle_tol:
+                    if abs(angle_error) > self.angle_tol:
                         vel = max(
                             -self.max_ang_vel,
                             min(self.max_ang_vel, self.kp_ang * angle_error),
                         )
-                        twist.angular.z = -vel * 0.5
+                        twist.angular.z = -vel * 0.4
 
                         self.get_logger().info(
                             f"approach2: angle_error={math.degrees(angle_error):.2f}, robot_yaw={math.degrees(self.robot_yaw):.2f}"
@@ -540,6 +619,7 @@ class ArucoNavigator(Node):
             yaw_err = self.wrap_angle(desired_yaw - self.robot_yaw)
             if abs(yaw_err) > self.angle_tol and 3 not in self.marker_distance:
                 twist.angular.z = self.kp_ang * yaw_err
+                self.get_logger().info("approach3: turning")
             else:
                 # check self.marker_distance have key 3
                 if 3 not in self.marker_distance:
@@ -555,7 +635,7 @@ class ArucoNavigator(Node):
                             -self.max_ang_vel,
                             min(self.max_ang_vel, self.kp_ang * angle_error),
                         )
-                        twist.angular.z = -vel * 0.5
+                        twist.angular.z = -vel * 0.4
                         self.get_logger().info(
                             f"approach3: angle_error={math.degrees(angle_error):.2f}, robot_yaw={math.degrees(self.robot_yaw):.2f}"
                         )
@@ -576,6 +656,7 @@ class ArucoNavigator(Node):
             yaw_err = self.wrap_angle(desired_yaw - self.robot_yaw)
             if abs(yaw_err) > self.angle_tol and 4 not in self.marker_distance:
                 twist.angular.z = self.kp_ang * yaw_err
+                self.get_logger().info("approach4: turning")
             else:
                 if 4 not in self.marker_distance:
                     self.get_logger().warn("Marker 4 not found!")
@@ -585,12 +666,12 @@ class ArucoNavigator(Node):
                         self.marker_camera[4][0], self.marker_camera[4][2]
                     )
                     # rotate to center
-                    if self.marker_update[4] and abs(angle_error) > self.angle_tol:
+                    if abs(angle_error) > self.angle_tol:
                         vel = max(
                             -self.max_ang_vel,
                             min(self.max_ang_vel, self.kp_ang * angle_error),
                         )
-                        twist.angular.z = -vel * 0.5
+                        twist.angular.z = -vel * 0.4
                     elif self.marker_distance[4] > self.dist_tol:
                         self.get_logger().info(
                             f"approach4: {self.marker_distance[4]:.2f}"
