@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="marker_4">
+    <static>true</static>
+    <link name="link">
+      <visual name="visual">
+        <geometry>
+          <plane>
+            <normal>0 0 1</normal>
+            <size>0.16 0.16</size> <!-- 16cm x 16cm -->
+          </plane>
+        </geometry>
+        <material>
+          <script>
+            <uri>model://marker_4/materials/scripts</uri>
+            <uri>model://marker_4/materials/textures</uri>
+            <name>Marker/marker_4</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
+

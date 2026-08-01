@@ -1,0 +1,8 @@
+export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:~/assignment-ros2/assignment4/aruco
+
+
+colcon build --packages-select tb3_autonomous
+source install/setup.bash
+
+
+ros2 launch tb3_autonomous new_world.launch.py
