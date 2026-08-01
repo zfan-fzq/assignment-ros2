@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="construction_cone">
+    <static>true</static>
+    <link name="cone">
+      <collision name="base_collision">
+        <pose>0 0 0.04 0 0 0</pose>
+        <geometry><cylinder><radius>0.18</radius><length>0.08</length></cylinder></geometry>
+      </collision>
+      <collision name="body_collision">
+        <pose>0 0 0.32 0 0 0</pose>
+        <geometry><cylinder><radius>0.12</radius><length>0.55</length></cylinder></geometry>
+      </collision>
+
+      <visual name="black_base">
+        <pose>0 0 0.035 0 0 0</pose>
+        <geometry><box><size>0.42 0.42 0.07</size></box></geometry>
+        <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+      </visual>
+      <visual name="orange_lower">
+        <pose>0 0 0.14 0 0 0</pose>
+        <geometry><cylinder><radius>0.16</radius><length>0.14</length></cylinder></geometry>
+        <material><ambient>1.0 0.32 0.02 1</ambient><diffuse>1.0 0.32 0.02 1</diffuse></material>
+      </visual>
+      <visual name="orange_lower_taper">
+        <pose>0 0 0.24 0 0 0</pose>
+        <geometry><cylinder><radius>0.13</radius><length>0.10</length></cylinder></geometry>
+        <material><ambient>1.0 0.32 0.02 1</ambient><diffuse>1.0 0.32 0.02 1</diffuse></material>
+      </visual>
+      <visual name="white_band_lower">
+        <pose>0 0 0.32 0 0 0</pose>
+        <geometry><cylinder><radius>0.115</radius><length>0.08</length></cylinder></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="orange_mid">
+        <pose>0 0 0.42 0 0 0</pose>
+        <geometry><cylinder><radius>0.085</radius><length>0.12</length></cylinder></geometry>
+        <material><ambient>1.0 0.32 0.02 1</ambient><diffuse>1.0 0.32 0.02 1</diffuse></material>
+      </visual>
+      <visual name="white_band_upper">
+        <pose>0 0 0.52 0 0 0</pose>
+        <geometry><cylinder><radius>0.065</radius><length>0.065</length></cylinder></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="orange_top">
+        <pose>0 0 0.61 0 0 0</pose>
+        <geometry><cylinder><radius>0.04</radius><length>0.12</length></cylinder></geometry>
+        <material><ambient>1.0 0.32 0.02 1</ambient><diffuse>1.0 0.32 0.02 1</diffuse></material>
+      </visual>
+    </link>
+  </model>
+</sdf>

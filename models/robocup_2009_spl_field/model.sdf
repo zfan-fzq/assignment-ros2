@@ -1,0 +1,213 @@
+<?xml version="1.0"?>
+<sdf version="1.8">
+  <model name="robocup_2009_spl_field">
+    <static>true</static>
+    <link name="field">
+      <collision name="field_collision">
+        <geometry>
+          <box>
+            <size>6.0 4.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name="green_field">
+        <pose>0 0 0.0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>6.0 4.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.12 0.48 0.08 1</ambient>
+          <diffuse>0.15 0.65 0.10 1</diffuse>
+        </material>
+      </visual>
+      <visual name="hd_field_texture">
+        <pose>0 0 0.031 0 0 0</pose>
+        <geometry>
+          <plane>
+            <normal>0 0 1</normal>
+            <size>6.0 4.0</size>
+          </plane>
+        </geometry>
+        <material>
+          <pbr>
+            <metal>
+              <albedo_map>materials/textures/robocup_field_hd.png</albedo_map>
+              <roughness>1.0</roughness>
+              <metalness>0.0</metalness>
+            </metal>
+          </pbr>
+          <ambient>1 1 1 1</ambient>
+          <diffuse>1 1 1 1</diffuse>
+          <lighting>false</lighting>
+        </material>
+      </visual>
+
+      <visual name="line_left">
+        <pose>-2.8 0 0.018 0 0 0</pose>
+        <geometry><box><size>0.05 3.6 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="line_right">
+        <pose>2.8 0 0.018 0 0 0</pose>
+        <geometry><box><size>0.05 3.6 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="line_top">
+        <pose>0 1.8 0.018 0 0 0</pose>
+        <geometry><box><size>5.6 0.05 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="line_bottom">
+        <pose>0 -1.8 0.018 0 0 0</pose>
+        <geometry><box><size>5.6 0.05 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="midline">
+        <pose>0 0 0.019 0 0 0</pose>
+        <geometry><box><size>0.04 3.6 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="center_circle_01">
+        <pose>0.376 0.156 0.019 0 0 1.9635</pose>
+        <geometry><box><size>0.04 0.325 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="center_circle_02">
+        <pose>0.156 0.376 0.019 0 0 2.7489</pose>
+        <geometry><box><size>0.04 0.325 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="center_circle_03">
+        <pose>-0.156 0.376 0.019 0 0 -2.7489</pose>
+        <geometry><box><size>0.04 0.325 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="center_circle_04">
+        <pose>-0.376 0.156 0.019 0 0 -1.9635</pose>
+        <geometry><box><size>0.04 0.325 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="center_circle_05">
+        <pose>-0.376 -0.156 0.019 0 0 -1.1781</pose>
+        <geometry><box><size>0.04 0.325 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="center_circle_06">
+        <pose>-0.156 -0.376 0.019 0 0 -0.3927</pose>
+        <geometry><box><size>0.04 0.325 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="center_circle_07">
+        <pose>0.156 -0.376 0.019 0 0 0.3927</pose>
+        <geometry><box><size>0.04 0.325 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="center_circle_08">
+        <pose>0.376 -0.156 0.019 0 0 1.1781</pose>
+        <geometry><box><size>0.04 0.325 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="center_spot">
+        <pose>0 0 0.022 0 0 0</pose>
+        <geometry><cylinder><radius>0.055</radius><length>0.01</length></cylinder></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+
+      <visual name="left_goal_box_front">
+        <pose>-2.15 0 0.019 0 0 0</pose>
+        <geometry><box><size>0.04 1.2 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="left_goal_box_top">
+        <pose>-2.475 0.6 0.019 0 0 0</pose>
+        <geometry><box><size>0.65 0.04 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="left_goal_box_bottom">
+        <pose>-2.475 -0.6 0.019 0 0 0</pose>
+        <geometry><box><size>0.65 0.04 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="left_penalty_mark">
+        <pose>-1.55 0 0.022 0 0 0</pose>
+        <geometry><cylinder><radius>0.04</radius><length>0.01</length></cylinder></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+
+      <visual name="right_goal_box_front">
+        <pose>2.15 0 0.019 0 0 0</pose>
+        <geometry><box><size>0.04 1.2 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="right_goal_box_top">
+        <pose>2.475 0.6 0.019 0 0 0</pose>
+        <geometry><box><size>0.65 0.04 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="right_goal_box_bottom">
+        <pose>2.475 -0.6 0.019 0 0 0</pose>
+        <geometry><box><size>0.65 0.04 0.01</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="right_penalty_mark">
+        <pose>1.55 0 0.022 0 0 0</pose>
+        <geometry><cylinder><radius>0.04</radius><length>0.01</length></cylinder></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+
+      <visual name="left_goal_post_top">
+        <pose>-2.98 0.5 0.45 0 0 0</pose>
+        <geometry><cylinder><radius>0.04</radius><length>0.9</length></cylinder></geometry>
+        <material><ambient>1 0.85 0.05 1</ambient><diffuse>1 0.85 0.05 1</diffuse></material>
+      </visual>
+      <visual name="left_goal_post_bottom">
+        <pose>-2.98 -0.5 0.45 0 0 0</pose>
+        <geometry><cylinder><radius>0.04</radius><length>0.9</length></cylinder></geometry>
+        <material><ambient>1 0.85 0.05 1</ambient><diffuse>1 0.85 0.05 1</diffuse></material>
+      </visual>
+      <visual name="left_goal_crossbar">
+        <pose>-2.98 0 0.9 1.5708 0 0</pose>
+        <geometry><cylinder><radius>0.035</radius><length>1.0</length></cylinder></geometry>
+        <material><ambient>1 0.85 0.05 1</ambient><diffuse>1 0.85 0.05 1</diffuse></material>
+      </visual>
+      <visual name="left_goal_back_bar_top">
+        <pose>-3.18 0.5 0.45 0 1.5708 0</pose>
+        <geometry><cylinder><radius>0.03</radius><length>0.4</length></cylinder></geometry>
+        <material><ambient>1 0.85 0.05 1</ambient><diffuse>1 0.85 0.05 1</diffuse></material>
+      </visual>
+      <visual name="left_goal_back_bar_bottom">
+        <pose>-3.18 -0.5 0.45 0 1.5708 0</pose>
+        <geometry><cylinder><radius>0.03</radius><length>0.4</length></cylinder></geometry>
+        <material><ambient>1 0.85 0.05 1</ambient><diffuse>1 0.85 0.05 1</diffuse></material>
+      </visual>
+
+      <visual name="right_goal_post_top">
+        <pose>2.98 0.5 0.45 0 0 0</pose>
+        <geometry><cylinder><radius>0.04</radius><length>0.9</length></cylinder></geometry>
+        <material><ambient>0.05 0.18 0.95 1</ambient><diffuse>0.05 0.18 0.95 1</diffuse></material>
+      </visual>
+      <visual name="right_goal_post_bottom">
+        <pose>2.98 -0.5 0.45 0 0 0</pose>
+        <geometry><cylinder><radius>0.04</radius><length>0.9</length></cylinder></geometry>
+        <material><ambient>0.05 0.18 0.95 1</ambient><diffuse>0.05 0.18 0.95 1</diffuse></material>
+      </visual>
+      <visual name="right_goal_crossbar">
+        <pose>2.98 0 0.9 1.5708 0 0</pose>
+        <geometry><cylinder><radius>0.035</radius><length>1.0</length></cylinder></geometry>
+        <material><ambient>0.05 0.18 0.95 1</ambient><diffuse>0.05 0.18 0.95 1</diffuse></material>
+      </visual>
+      <visual name="right_goal_back_bar_top">
+        <pose>3.18 0.5 0.45 0 1.5708 0</pose>
+        <geometry><cylinder><radius>0.03</radius><length>0.4</length></cylinder></geometry>
+        <material><ambient>0.05 0.18 0.95 1</ambient><diffuse>0.05 0.18 0.95 1</diffuse></material>
+      </visual>
+      <visual name="right_goal_back_bar_bottom">
+        <pose>3.18 -0.5 0.45 0 1.5708 0</pose>
+        <geometry><cylinder><radius>0.03</radius><length>0.4</length></cylinder></geometry>
+        <material><ambient>0.05 0.18 0.95 1</ambient><diffuse>0.05 0.18 0.95 1</diffuse></material>
+      </visual>
+    </link>
+  </model>
+</sdf>
