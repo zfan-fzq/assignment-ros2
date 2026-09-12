@@ -18,7 +18,7 @@ def generate_launch_description():
 
     pkg_share = get_package_share_directory("assignment3_tb3")
     tb3_share = get_package_share_directory("turtlebot3_gazebo")
-    ros_gz_sim_share = get_package_share_directory("ros_gz_sim")
+    gazebo_ros_share = get_package_share_directory("gazebo_ros")
 
     use_sim_time = LaunchConfiguration("use_sim_time", default="true")
     gui = LaunchConfiguration("gui", default="true")
@@ -33,16 +33,15 @@ def generate_launch_description():
 
     gz_server = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(ros_gz_sim_share, "launch", "gz_sim.launch.py")
+            os.path.join(gazebo_ros_share, "launch", "gzserver.launch.py")
         ),
-        launch_arguments={"gz_args": ["-r -s -v2 ", world], "on_exit_shutdown": "true"}.items(),
+        launch_arguments={"world": world}.items(),
     )
 
     gz_client = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(ros_gz_sim_share, "launch", "gz_sim.launch.py")
+            os.path.join(gazebo_ros_share, "launch", "gzclient.launch.py")
         ),
-        launch_arguments={"gz_args": "-g -v2 "}.items(),
         condition=IfCondition(gui),
     )
 
@@ -90,11 +89,11 @@ def generate_launch_description():
             SetEnvironmentVariable("LIBGL_ALWAYS_SOFTWARE", "1"),
             SetEnvironmentVariable("MESA_GL_VERSION_OVERRIDE", "3.3"),
             AppendEnvironmentVariable(
-                "GZ_SIM_RESOURCE_PATH",
+                "GAZEBO_MODEL_PATH",
                 os.path.join(pkg_share, "models"),
             ),
             AppendEnvironmentVariable(
-                "GZ_SIM_RESOURCE_PATH",
+                "GAZEBO_MODEL_PATH",
                 os.path.join(tb3_share, "models"),
             ),
             gz_server,

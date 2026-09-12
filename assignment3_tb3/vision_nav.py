@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import cv2
 from cv_bridge import CvBridge
-from geometry_msgs.msg import TwistStamped
+from geometry_msgs.msg import Twist
 import numpy as np
 import rclpy
 from rclpy.node import Node
@@ -65,7 +65,7 @@ class VisionNavigator(Node):
             self.image_callback,
             qos_profile_sensor_data,
         )
-        self.cmd_pub = self.create_publisher(TwistStamped, cmd_topic, 10)
+        self.cmd_pub = self.create_publisher(Twist, cmd_topic, 10)
         self.timer = self.create_timer(0.1, self.control_loop)
 
         self.get_logger().info(
@@ -496,11 +496,9 @@ class VisionNavigator(Node):
         return angular
 
     def publish_cmd(self, linear_x, angular_z):
-        cmd = TwistStamped()
-        cmd.header.stamp = self.get_clock().now().to_msg()
-        cmd.header.frame_id = "base_link"
-        cmd.twist.linear.x = float(linear_x)
-        cmd.twist.angular.z = float(angular_z)
+        cmd = Twist()
+        cmd.linear.x = float(linear_x)
+        cmd.angular.z = float(angular_z)
         self.cmd_pub.publish(cmd)
 
     def log_status(self, mode, field, outside, cone, lines, linear, angular):
